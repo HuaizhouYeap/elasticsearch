@@ -43,6 +43,29 @@ public interface SimplificationErrorCalculator {
     }
 
     /**
+     * Helper method to calculate triangle area using Heron's formula with side lengths
+     */
+    static double calculateTriangleAreaByHeron(double sideA, double sideB, double sideC) {
+        double s = 0.5 * (sideA + sideB + sideC);  // Semi-perimeter
+        double da = s - sideA;
+        double db = s - sideB;
+        double dc = s - sideC;
+        if (da >= 0 && db >= 0 && dc >= 0) {
+            return Math.sqrt(s * da * db * dc);
+        } else {
+            // rounding errors can cause flat triangles to have negative values, leading to NaN areas
+            return 0.0;
+        }
+    }
+
+    /**
+     * Helper method to calculate haversine distance between two geographic points
+     */
+    static double calculateHaversineDistance(PointLike a, PointLike b) {
+        return SloppyMath.haversinMeters(a.y(), a.x(), b.y(), b.x());
+    }
+
+    /**
      * Calculate the triangle area using cartesian coordinates as described at
      * <a href="https://en.wikipedia.org/wiki/Area_of_a_triangle">Area of a triangle</a>
      */
@@ -67,25 +90,11 @@ public interface SimplificationErrorCalculator {
         @Override
         public double calculateError(PointLike left, PointLike middle, PointLike right) {
             // Calculate side lengths using approximate haversine
-            double a = distance(left, right);
-            double b = distance(right, middle);
-            double c = distance(middle, left);
-            // semi-perimeter
-            double s = 0.5 * (a + b + c);  // Semi-perimeter
-            double da = s - a;
-            double db = s - b;
-            double dc = s - c;
-            if (da >= 0 && db >= 0 && dc >= 0) {
-                // Herons formula
-                return Math.sqrt(s * da * db * dc);
-            } else {
-                // rounding errors can cause flat triangles to have negative values, leading to NaN areas
-                return 0.0;
-            }
-        }
-
-        private static double distance(PointLike a, PointLike b) {
-            return SloppyMath.haversinMeters(a.y(), a.x(), b.y(), b.x());
+            double a = calculateHaversineDistance(left, right);
+            double b = calculateHaversineDistance(right, middle);
+            double c = calculateHaversineDistance(middle, left);
+            
+            return calculateTriangleAreaByHeron(a, b, c);
         }
     }
 
@@ -99,25 +108,17 @@ public interface SimplificationErrorCalculator {
         @Override
         public double calculateError(PointLike left, PointLike middle, PointLike right) {
             // Calculate side lengths using approximate haversine
-            double a = distance(left, right);
-            double b = distance(right, middle);
-            double c = distance(middle, left);
-            // semi-perimeter
-            double s = 0.5 * (a + b + c);  // Semi-perimeter
-            double da = s - a;
-            double db = s - b;
-            double dc = s - c;
-            if (da >= 0 && db >= 0 && dc >= 0) {
+            double a = calculateHaversineDistance(left, right);
+            double b = calculateHaversineDistance(right, middle);
+            double c = calculateHaversineDistance(middle, left);
+            
+            double area = calculateTriangleAreaByHeron(a, b, c);
+            if (area > 0) {
                 // Herons formula, scaled by 2/a to estimate height
-                return 2.0 * Math.sqrt(s * da * db * dc) / a;
+                return 2.0 * area / a;
             } else {
-                // rounding errors can cause flat triangles to have negative values, leading to NaN areas
                 return 0.0;
             }
-        }
-
-        private static double distance(PointLike a, PointLike b) {
-            return SloppyMath.haversinMeters(a.y(), a.x(), b.y(), b.x());
         }
     }
 
